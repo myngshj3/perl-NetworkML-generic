@@ -1,0 +1,308 @@
+%{
+#
+# networkml.yp
+#
+#
+# Parse::Yapp input grammer for NetworkML
+#
+#
+# header section
+#
+%}
+
+%{
+use NetworkML::Tokenizer;
+%}
+
+
+%%
+
+program:  statements { ['program', [$_[1]]] }
+        ;
+
+statements:           { ['statements', []] }
+	  | statement { ['statements', [$_[1]]] }
+          | statements statement { push(@{$_[1][1]}, $_[2]); $_[1] }
+	  ;
+
+statement: decl ';'   { $_[1] }
+         | subst ';'  { $_[1] }
+         | increment ';'  { $_[1] }
+         | decrement ';'  { $_[1] }
+         | funccall ';' { $_[1] }
+	 | loop       { $_[1] }
+	 | conditional_statement { $_[1] }
+	 ;
+
+decl: VAR symbol { ['decl', [$_[2]]] }
+    ;
+
+subst: subst_lterm '=' subst_rterm  { ['subst', [$_[1], $_[3]]] }
+     ;
+
+subst_lterm: symbol  { $_[1] }
+	   | decl    { $_[1] }
+	   | array_element { $_[1] }
+	   | mapped_value  { $_[1] }
+           ;
+
+subst_rterm: integer { $_[1] }
+           | float   { $_[1] }
+           | string  { $_[1] }
+           | symbol  { $_[1] }
+           | funccall { $_[1] }
+           | array   { $_[1] }
+           | array_element { $_[1] }
+   	   | hash       { $_[1] }
+   	   | hash_value { $_[1] }
+           | expr       { $_[1] }
+           ;
+
+increment: increment_lterm '+=' increment_rterm { ['increment', [$_[1],$_[3]]] }
+	 ;
+
+increment_lterm: symbol        { $_[1] }
+               | array_element { $_[1] }
+               ;
+
+increment_rterm: integer       { $_[1] }
+               | float         { $_[1] }
+	       | symbol        { $_[1] }
+	       | funccall      { $_[1] }
+	       | array_element { $_[1] }
+	       | expr          { $_[1] }
+	       ;
+
+decrement: decrement_lterm '-=' decrement_rterm { ['decrement', [$_[1],$_[3]]] }
+	 ;
+
+decrement_lterm: symbol        { $_[1] }
+               | array_element { $_[1] }
+               ;
+
+decrement_rterm: integer  { $_[1] }
+               | float    { $_[1] }
+	       | symbol   { $_[1] }
+	       | funccall { $_[1] }
+	       | array_element { $_[1] }
+	       | expr     { $_[1] }
+	       ;
+
+funccall:  funcsymbol tuple { ['funccall', [$_[1], $_[2]]] }
+         ;
+
+funcsymbol:  symbol  { $_[1] }
+           ;
+
+tuple: '(' list ')' { ['tuple', [$_[2]]] }
+     ;
+
+list:                    { ['list', []] }
+     | list_element      { ['list', [$_[1]]] }
+     | list ',' list_element { push(@{$_[1][1]}, $_[3]); $_[1] }
+     ;
+
+list_element:  integer  { $_[1] }
+	     | float    { $_[1] }
+     	     | string   { $_[1] }
+	     | symbol   { $_[1] }
+	     | funccall { $_[1] }
+	     | array    { $_[1] }
+	     | array_element { $_[1] }
+	     | hash     { $_[1] }
+	     | hash_value { $_[1] }
+	     ;
+
+array_element: symbol '[' array_index ']' { ['array_element', [$_[1], $_[3]]] }
+             | array_element '[' array_index ']' { push@{$_[1][1]},$_[3]; $_[1] }
+	     ;
+	     
+array_index: integer { ['array_index', [$_[1]]] }
+           | symbol  { ['array_index', [$_[1]]] }
+	   | array_element { ['array_index', [$_[1]]] }
+	   | funccall { ['array_index', [$_[1]]] }
+	   ;
+
+array:  '[' ']'      { ['array', [['list', []]]] }
+      | '[' list ']' { ['array', [$_[2]]] }
+      ;
+
+map: map_key '=>' mapped_value { ['=>', [$_[1], $_[3]]] }
+   ;
+
+map_key: string  { $_[1] }
+       | symbol  { $_[1] }
+       ;
+
+mapped_value: string { $_[1] }
+	   | integer { $_[1] }
+           | float   { $_[1] }
+	   | symbol  { $_[1] }
+	   | funccall { $_[1] }
+	   | array   { $_[1] }
+	   | array_element { $_[1] }
+	   | hash    { $_[1] }
+	   | hash_value { $_[1] }
+	   ;
+
+map_list:                  { ['map_list', []] }
+        | map              { ['map_list', [$_[1]]] }
+	| map_list ',' map { push@{$_[1][1]},$_[3]; $_[1] }
+	;
+
+hash: '{' map_list '}'  { ['hash', [$_[2]]] }
+    ;
+
+hash_value: symbol '{' map_key '}' { ['hash_value', [$_[1], $_[3]]] }
+          ;
+
+symbol: SYMBOL { ['SYMBOL', $_[1]] }
+      ;
+
+string: STRING { ['STRING', $_[1]] }
+      ;
+
+integer: INTEGER { ['INTEGER', $_[1]] }
+       ;
+
+float: FLOAT { ['FLOAT', $_[1]] }
+     ;
+
+true: TRUE    { ['TRUE',$_[1]] };
+
+false: FALSE   { ['FALSE',$_[1]] };
+
+loop: WHILE '(' condition ')' '{' statements '}' { ['loop', [$_[3], $_[6]]] }
+    ;
+
+conditional_statement: opened_if_statement { ['conditional_statement', [$_[1]]] }
+                     | opened_if_statement else_statement { push@{$_[1][1]},$_[2]; $_[1] }
+	             ;
+		     
+opened_if_statement: if_statement { ['opened_if_statement', [$_[1]]] }
+                   | opened_if_statement elsif_statement { push@{$_[1][1]},$_[2]; $_[1] }
+                   ;
+    
+if_statement: IF '(' condition ')' '{' statements '}' { ['if_statement', [$_[3], $_[6]]] }
+	    ;
+
+elsif_statement: ELSIF '(' condition ')' '{' statements '}' { ['elsif_statement', [$_[3], $_[6]]] }
+	       ;
+
+else_statement: ELSE '{' statements '}' { ['else_statement', [undef, $_[3]]] }
+              ;
+
+condition:  true    { $_[1] }
+         |  false   { $_[1] }
+         |  equality    { $_[1] }
+         |  inequality  { $_[1] }
+         |  greateroreq { $_[1] }
+         |  greaterthan { $_[1] }
+         |  lessoreq    { $_[1] }
+         |  lessthan    { $_[1] }
+	 |  conjunctive_condition { $_[1] } 
+	 |  disjunctive_condition { $_[1] }
+	 |  negative_condition    { $_[1] }
+         |  '(' condition ')' { $_[2] }
+	 ;
+
+binary_operand: true    { $_[1] }
+              | false   { $_[1] }
+	      | integer { $_[1] }
+	      | float   { $_[1] }
+	      | string  { $_[1] }
+	      | symbol  { $_[1] }
+      	      | funccall { $_[1] }
+      	      | array_element { $_[1] }
+	      ;
+
+equality:   binary_operand '==' binary_operand  { ['eq', [$_[1], $_[3]]] }
+;
+inequality: binary_operand '!=' binary_operand  { ['ne', [$_[1], $_[3]]] }
+;
+lessoreq:   binary_operand '<=' binary_operand  { ['le', [$_[1], $_[3]]] }
+;
+lessthan:   binary_operand '<' binary_operand   { ['lt', [$_[1], $_[3]]] }
+;
+greateroreq: binary_operand '>=' binary_operand { ['ge', [$_[1], $_[3]]] }
+;
+greaterthan: binary_operand '>' binary_operand  { ['gt', [$_[1], $_[3]]] }
+;
+conjunctive_condition: condition AND condition { ['and', [$_[1], $_[3]]] }
+;
+disjunctive_condition: condition OR  condition { ['or', [$_[1], $_[3]]] }
+;
+negative_condition: NOT condition { ['not', [$_[2]]] }
+;
+
+expr: integer       { $_[1] }
+    | float         { $_[1] }
+    | symbol        { $_[1] }
+    | funccall      { $_[1] }
+    | array_element { $_[1] }
+    | add           { $_[1] }
+    | subtract      { $_[1] }
+    | multiply      { $_[1] }
+    | divide        { $_[1] }
+    | mod           { $_[1] }
+    | '(' expr ')'  { $_[2] }
+    ;
+
+add: expr '+' expr      { ['+', [$_[1], $_[3]]] }
+;
+subtract: expr '-' expr { ['-', [$_[1], $_[3]]] }
+;
+multiply: expr '*' expr { ['*', [$_[1], $_[3]]] }
+;
+divide: expr '/' expr   { ['/', [$_[1], $_[3]]] }
+;
+mod: expr '%' expr      { ['%', [$_[1], $_[3]]] }
+;
+
+%%
+
+sub evaluate {
+    my ($self, $program) = @_;
+}
+
+sub interpret {
+    my ($self, $program) = @_;
+    for my $p (@$program) {
+    	$self->evaluate($p);
+    }
+}
+
+sub parse {
+    my ($self, $text) = @_;
+    my $tokenizer = NetworkML::Tokenizer->new();
+    my $tokenList = $tokenizer->tokenize($text);
+    my $err = 0;
+    my $errmsgs = [];
+    sub _on_error {
+    	#exists $_[0]->YYData->{ERRMSG}
+    	#and do {
+    	#    $err = 1;
+	#    delete $_[0]->YYData->{ERRMSG};
+    	#};
+	$err = 1;
+	my $val = $_[0]->YYCurval;
+	printf("Error: Type=>%s, Value=>%s at from %d in line %d to %d in line %d\n",
+	       $val->{Type}, $val->{Value},
+	       $val->{TextLoc}->{StartH}, $val->{TextLoc}->{StartV},
+	       $val->{TextLoc}->{EndH}, $val->{TextLoc}->{EndV});
+	push @$errmsgs, $_[0]->YYData->{ERRMSG} if defined $_[0]->YYData->{ERRMSG};
+    }
+    sub _on_lexer {
+    	my $parser = shift;
+	my $v = shift @$tokenList;
+	return defined($v) ? ($v->{Type}, $v) : undef;
+    }
+    my $value = $self->YYParse(yylex=>\&_on_lexer, yyerror=>\&_on_error);
+    return $err, $value, $errmsgs;
+}
+
+sub getTerminals {
+    my $self = shift;
+    my $tokenizer = NetworkML::Tokenizer->new();
+    return $tokenizer->{TokenNames};
+}

@@ -1,0 +1,30 @@
+#
+# NetworkML sample program
+#
+
+var firstName;
+var lastName = "Miyanaga";
+var myHash = {};
+var firstName;
+print(ENV{PGHOST});
+var hash = {"Open"=> "config.sys","Close"=> ".bashrc"};
+
+var firstNames = ["Eiichi","Hatsumi","Nobumasa","Shoji"];
+
+var i=0;
+while (i<scalar(firstNames)) {
+  if (firstName[getIndex(i)] == "Eiichi") {
+      print(firstName);
+  }
+  elsif (firstName[i] == "Nobumasa") {
+      print(hash{"Close"});
+  }
+  else{
+      print(hash{close});
+  }
+  i[j][k] += 1;
+}
+var dummy=0;
+var dummy=2;
+var dummy=3.14;
+
